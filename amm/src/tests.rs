@@ -2,8 +2,9 @@
 mod tests {
     use crate::storage::*;
     use chrono::{Duration, Utc};
+    use near_sdk::mock::VmAction;
     use near_sdk::test_utils::test_env::{alice, bob, carol};
-    use near_sdk::test_utils::VMContextBuilder;
+    use near_sdk::test_utils::{get_created_receipts, VMContextBuilder};
     use near_sdk::{testing_env, AccountId, Balance, PromiseResult};
     use rand::seq::SliceRandom;
 
@@ -43,6 +44,10 @@ mod tests {
 
     fn market_creator_account_id() -> AccountId {
         AccountId::new_unchecked("market_creator_account_id.near".to_string())
+    }
+
+    fn market_account_id() -> AccountId {
+        AccountId::new_unchecked("market.near".to_string())
     }
 
     fn date(date: chrono::DateTime<chrono::Utc>) -> i64 {
@@ -673,6 +678,67 @@ mod tests {
         create_outcome_tokens(&mut contract);
 
         contract.aggregator_read();
+    }
+
+    #[test]
+    #[should_panic(expected = "ERR_MARKET_WINDOW_NOT_OVER")]
+    fn self_destruct_errors_before_market_window_is_over() {
+        let mut context = setup_context();
+
+        let now = Utc::now();
+        testing_env!(context.block_timestamp(block_timestamp(now)).build());
+        let starts_at = now + Duration::hours(1);
+        let ends_at = starts_at + Duration::hours(1);
+
+        let market_data: MarketData = create_market_data(
+            "a market description".to_string(),
+            2,
+            date(starts_at),
+            date(ends_at),
+        );
+
+        let mut contract: Market = setup_contract(market_data, None);
+
+        contract.self_destruct();
+    }
+
+    #[test]
+    fn self_destruct_returns_storage_deposit_to_market_creator_after_market_window() {
+        let mut context = setup_context();
+
+        let now = Utc::now();
+        testing_env!(context.block_timestamp(block_timestamp(now)).build());
+        let starts_at = now - Duration::hours(2);
+        let ends_at = now - Duration::hours(1);
+
+        let market_data: MarketData = create_market_data(
+            "a market description".to_string(),
+            2,
+            date(starts_at),
+            date(ends_at),
+        );
+
+        let mut contract: Market = setup_contract(market_data, None);
+
+        testing_env!(context
+            .current_account_id(market_account_id())
+            .predecessor_account_id(frank())
+            .signer_account_id(frank())
+            .block_timestamp(block_timestamp(now))
+            .build());
+
+        contract.self_destruct();
+
+        let receipts = get_created_receipts();
+        assert_eq!(receipts.len(), 1);
+        assert_eq!(receipts[0].receiver_id, market_account_id());
+        assert_eq!(receipts[0].actions.len(), 1);
+        assert_eq!(
+            receipts[0].actions[0],
+            VmAction::DeleteAccount {
+                beneficiary_id: market_creator_account_id()
+            }
+        );
     }
 
     #[test]
