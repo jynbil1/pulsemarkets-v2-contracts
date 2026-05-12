@@ -228,6 +228,19 @@ impl Market {
             .aggregator_read(msg.to_string())
     }
 
+    /**
+     * Deletes the Market contract account after the market window has ended.
+     *
+     * Anyone may call this once the market is over. NEAR sends the remaining
+     * storage balance on the deleted contract account to the market creator.
+     */
+    pub fn self_destruct(&mut self) -> Promise {
+        near_sdk::require!(self.is_over(), "ERR_MARKET_WINDOW_NOT_OVER");
+
+        Promise::new(env::current_account_id())
+            .delete_account(self.management.market_creator_account_id.clone())
+    }
+
     #[private]
     pub fn update_ct_balance(&mut self, amount: WrappedBalance) -> WrappedBalance {
         log!(
