@@ -7,6 +7,7 @@ use crate::{storage::*, FORMATTED_STRING_LOCALE};
 #[near_bindgen]
 impl Market {
     #[private]
+    /// Applies a successful collateral transfer callback by burning sold outcome tokens and reducing collateral balance.
     pub fn on_ft_transfer_callback(
         &mut self,
         amount: WrappedBalance,

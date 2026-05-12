@@ -8,6 +8,7 @@ use crate::{
 };
 
 impl Default for OutcomeToken {
+    /// Prevents creating an outcome token without explicit outcome metadata.
     fn default() -> Self {
         panic!("OutcomeToken should be initialized before usage")
     }

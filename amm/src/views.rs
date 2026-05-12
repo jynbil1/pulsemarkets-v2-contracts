@@ -7,10 +7,12 @@ use substring::Substring;
 use crate::{storage::*, FORMATTED_STRING_LOCALE};
 
 trait Extract {
+    /// Converts a timestamp value into the nanosecond precision used by market comparisons.
     fn extract_nanoseconds(&self) -> Timestamp;
 }
 
 impl Extract for Timestamp {
+    /// Parses the timestamp prefix used by the existing market window calculations.
     fn extract_nanoseconds(&self) -> Timestamp {
         let timestamp = self.to_string();
         let seconds = timestamp.substring(0, 13);
@@ -21,10 +23,12 @@ impl Extract for Timestamp {
 
 #[near_bindgen]
 impl Market {
+    /// Returns a copy of the market metadata.
     pub fn get_market_data(&self) -> MarketData {
         self.market.clone()
     }
 
+    /// Returns the price-market metadata or panics when the market is not price based.
     pub fn get_pricing_data(&self) -> Pricing {
         match &self.price {
             Some(price) => price.clone(),
@@ -32,14 +36,17 @@ impl Market {
         }
     }
 
+    /// Returns a copy of the resolution metadata.
     pub fn get_resolution_data(&self) -> Resolution {
         self.resolution.clone()
     }
 
+    /// Returns the fee ratio charged when buying outcome tokens.
     pub fn get_fee_ratio(&self) -> WrappedBalance {
         self.fees.fee_ratio
     }
 
+    /// Returns a stored outcome token by id.
     pub fn get_outcome_token(&self, outcome_id: OutcomeId) -> OutcomeToken {
         match self.outcome_tokens.get(&outcome_id) {
             Some(token) => token,
@@ -47,6 +54,7 @@ impl Market {
         }
     }
 
+    /// Returns all outcome ids derived from the configured market options.
     pub fn get_outcome_ids(&self) -> Vec<OutcomeId> {
         self.market
             .options
@@ -56,26 +64,32 @@ impl Market {
             .collect()
     }
 
+    /// Returns the current block timestamp as the contract timestamp type.
     pub fn get_block_timestamp(&self) -> Timestamp {
         env::block_timestamp().try_into().unwrap()
     }
 
+    /// Returns a copy of the collateral-token metadata and balances.
     pub fn get_collateral_token_metadata(&self) -> CollateralToken {
         self.collateral_token.clone()
     }
 
+    /// Returns the account that created the market.
     pub fn get_market_creator_account_id(&self) -> AccountId {
         self.management.market_creator_account_id.clone()
     }
 
+    /// Returns the DAO account configured for this market.
     pub fn dao_account_id(&self) -> AccountId {
         self.management.dao_account_id.clone()
     }
 
+    /// Returns the timestamp when the resolution window closes.
     pub fn resolution_window(&self) -> Timestamp {
         self.resolution.window
     }
 
+    /// Returns the timestamp when the market was resolved.
     pub fn resolved_at(&self) -> Timestamp {
         match self.resolution.resolved_at {
             Some(timestamp) => timestamp,
@@ -83,6 +97,7 @@ impl Market {
         }
     }
 
+    /// Reports whether the market already has a resolution timestamp.
     pub fn is_resolved(&self) -> bool {
         match self.resolution.resolved_at {
             Some(_) => true,
@@ -90,6 +105,7 @@ impl Market {
         }
     }
 
+    /// Returns the timestamp after which buys are disabled and sells may be considered.
     pub fn get_buy_sell_timestamp(&self) -> i64 {
         let diff = (self.market.ends_at - self.market.starts_at) as f64 * 0.25;
 
@@ -106,27 +122,33 @@ impl Market {
         self.get_block_timestamp().extract_nanoseconds() <= limit.extract_nanoseconds()
     }
 
+    /// Reports whether the market is closed for new buys.
     pub fn is_closed(&self) -> bool {
         !self.is_open()
     }
 
+    /// Reports whether the market end timestamp has passed.
     pub fn is_over(&self) -> bool {
         self.get_block_timestamp().extract_nanoseconds() > self.market.ends_at.extract_nanoseconds()
     }
 
+    /// Reports whether the resolution window has passed.
     pub fn is_resolution_window_expired(&self) -> bool {
         self.get_block_timestamp().extract_nanoseconds()
             > self.resolution.window.extract_nanoseconds()
     }
 
+    /// Reports whether the market passed resolution without a winning outcome.
     pub fn is_expired_unresolved(&self) -> bool {
         self.is_resolution_window_expired() && !self.is_resolved()
     }
 
+    /// Returns an account's balance for a specific outcome token.
     pub fn balance_of(&self, outcome_id: OutcomeId, account_id: AccountId) -> WrappedBalance {
         self.get_outcome_token(outcome_id).get_balance(&account_id)
     }
 
+    /// Splits a buy amount into mintable outcome tokens and collected fees.
     pub fn get_amount_mintable(&self, amount: WrappedBalance) -> (WrappedBalance, WrappedBalance) {
         let fee = self.calc_percentage(amount, self.get_fee_ratio());
         let amount_mintable = amount - fee;
@@ -134,6 +156,7 @@ impl Market {
         (amount_mintable, fee)
     }
 
+    /// Calculates the collateral payable and proportional weight for selling outcome tokens.
     pub fn get_amount_payable(
         &self,
         amount: WrappedBalance,
@@ -204,6 +227,7 @@ impl Market {
         (amount_payable, weight)
     }
 
+    /// Returns the fixed-point precision derived from collateral token decimals.
     pub fn get_precision_decimals(&self) -> WrappedBalance {
         let precision = format!(
             "{:0<p$}",
@@ -214,6 +238,7 @@ impl Market {
         precision.parse().unwrap()
     }
 
+    /// Calculates a basis-point percentage using the market's fixed-point precision.
     pub fn calc_percentage(&self, amount: WrappedBalance, bps: WrappedBalance) -> WrappedBalance {
         math::complex_div_u128(
             self.get_precision_decimals(),

@@ -13,6 +13,7 @@ use crate::storage::*;
 
 #[ext_contract(ext_self)]
 trait Callbacks {
+    /// Finalizes an outcome-token sale after the collateral transfer returns.
     fn on_ft_transfer_callback(
         &mut self,
         amount: WrappedBalance,
@@ -24,10 +25,12 @@ trait Callbacks {
 
 #[ext_contract(ext_feed_parser)]
 trait SwitchboardFeedParser {
+    /// Requests the feed-parser contract to read an encoded aggregator message.
     fn aggregator_read(&self, msg: String) -> Promise;
 }
 
 impl Default for Market {
+    /// Prevents creating an uninitialized market with the Rust default value.
     fn default() -> Self {
         env::panic_str("ERR_MARKET_NOT_INITIALIZED")
     }
@@ -36,6 +39,7 @@ impl Default for Market {
 #[near_bindgen]
 impl Market {
     #[init]
+    /// Initializes a market with metadata, resolution rules, management accounts, fees, and optional price data.
     pub fn new(
         market: MarketData,
         resolution: Resolution,
@@ -193,6 +197,7 @@ impl Market {
         self.resolution.resolved_at = Some(self.get_block_timestamp());
     }
 
+    /// Creates one inactive-balance outcome token for each configured market option.
     pub fn create_outcome_tokens(&mut self) -> usize {
         match self.outcome_tokens.get(&0) {
             Some(_token) => env::panic_str("ERR_CREATE_OUTCOME_TOKENS_OUTCOMES_EXIST"),
@@ -229,6 +234,7 @@ impl Market {
     }
 
     #[private]
+    /// Replaces the tracked collateral-token balance after collateral enters or leaves the market.
     pub fn update_ct_balance(&mut self, amount: WrappedBalance) -> WrappedBalance {
         log!(
             "update_ct_balance: {}",
@@ -240,6 +246,7 @@ impl Market {
     }
 
     #[private]
+    /// Adds newly collected fees to the tracked collateral-token fee balance.
     pub fn update_ct_fee_balance(&mut self, amount: WrappedBalance) -> WrappedBalance {
         self.collateral_token.fee_balance += amount;
         self.collateral_token.fee_balance
@@ -247,6 +254,7 @@ impl Market {
 }
 
 impl Market {
+    /// Deactivates every losing outcome token after the winning outcome is known.
     fn burn_the_losers(&mut self, outcome_id: OutcomeId) {
         for id in 0..self.market.options.len() {
             let mut outcome_token = self.get_outcome_token(id as OutcomeId);
@@ -258,11 +266,13 @@ impl Market {
         }
     }
 
+    /// Creates and stores an empty outcome token for the given market outcome.
     fn create_outcome_token(&mut self, outcome_id: OutcomeId) {
         let outcome_token = OutcomeToken::new(outcome_id, 0);
         self.outcome_tokens.insert(&outcome_id, &outcome_token);
     }
 
+    /// Burns a seller's outcome tokens and starts the collateral payout transfer.
     fn internal_sell(&mut self, outcome_id: OutcomeId, amount: WrappedBalance) -> WrappedBalance {
         if amount > self.balance_of(outcome_id, env::signer_account_id()) {
             env::panic_str("ERR_SELL_AMOUNT_GREATER_THAN_BALANCE");

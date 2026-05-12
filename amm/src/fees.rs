@@ -9,8 +9,11 @@ use crate::storage::*;
 
 #[ext_contract(ext_self)]
 trait Callbacks {
+    /// Records a successful market-creator fee payout.
     fn on_claim_market_creator_fees_resolved_callback(&mut self, payee: AccountId) -> String;
+    /// Continues DAO fee sweeping after the collateral token balance is returned.
     fn on_ft_balance_of_market_callback(&mut self) -> Promise;
+    /// Logs the DAO transfer result after unclaimed fees are swept.
     fn on_ft_transfer_to_dao_callback(&mut self);
 }
 
@@ -86,6 +89,7 @@ impl Market {
     }
 
     #[private]
+    /// Stores the amount paid to the market creator after the collateral transfer callback succeeds.
     pub fn on_claim_market_creator_fees_resolved_callback(&mut self, payee: AccountId) -> String {
         let ft_transfer_result = match env::promise_result(0) {
             PromiseResult::Successful(result) => result,
@@ -150,6 +154,7 @@ impl Market {
         };
     }
 
+    /// Returns the staking-fee amount already claimed by an account, or zero when none is recorded.
     pub fn get_claimed_staking_fees(&self, account_id: AccountId) -> String {
         if let Some(staking_fees) = &self.fees.staking_fees {
             match staking_fees.get(&account_id) {
@@ -161,6 +166,7 @@ impl Market {
         }
     }
 
+    /// Reports whether the fee claiming window has elapsed.
     pub fn is_claiming_window_expired(&self) -> bool {
         if let Some(claiming_window) = self.fees.claiming_window {
             return self.get_block_timestamp() > claiming_window;
@@ -169,6 +175,7 @@ impl Market {
         return false;
     }
 
+    /// Returns the configured fee claiming-window timestamp.
     pub fn claiming_window(&self) -> Timestamp {
         if let Some(claiming_window) = self.fees.claiming_window {
             return claiming_window;

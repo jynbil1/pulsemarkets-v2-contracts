@@ -9,6 +9,7 @@ use crate::storage::*;
 
 #[ext_contract(ext_self)]
 trait Callbacks {
+    /// Continues market setup after the market subaccount is created and initialized.
     fn on_create_market_callback(
         &mut self,
         market_account_id: AccountId,
@@ -17,6 +18,7 @@ trait Callbacks {
 }
 
 impl Default for MarketFactory {
+    /// Prevents using the factory before explicit initialization.
     fn default() -> Self {
         env::panic_str("MarketFactory should be initialized before usage")
     }
@@ -25,6 +27,7 @@ impl Default for MarketFactory {
 #[near_bindgen]
 impl MarketFactory {
     #[init]
+    /// Initializes an empty factory with no tracked markets.
     pub fn new() -> Self {
         if env::state_exists() {
             env::panic_str("ERR_ALREADY_INITIALIZED");
@@ -36,6 +39,7 @@ impl MarketFactory {
     }
 
     #[payable]
+    /// Creates a market subaccount, deploys the market contract, and schedules post-deploy setup.
     pub fn create_market(&mut self, name: AccountId, args: Base64VecU8) -> Promise {
         let market_account_id: AccountId = format!("{}.{}", name, env::current_account_id())
             .parse()

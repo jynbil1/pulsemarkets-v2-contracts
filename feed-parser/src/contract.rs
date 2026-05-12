@@ -7,11 +7,13 @@ use crate::storage::*;
 
 #[ext_contract(ext_self)]
 trait Callbacks {
+    /// Receives the result of an internal above-price feed read.
     fn on_internal_above_price_feed_read_callback(&self, payload: AbovePriceFeedArgs);
 }
 
 #[near_bindgen]
 impl SwitchboardFeedParser {
+    /// Parses an aggregator-read payload and starts the matching feed read flow.
     pub fn aggregator_read(&self, msg: String) -> Promise {
         let payload: Payload =
             serde_json::from_str(&msg).expect("ERR_AGGREGATOR_READ_INVALID_PAYLOAD");
@@ -28,6 +30,7 @@ impl SwitchboardFeedParser {
 }
 
 impl SwitchboardFeedParser {
+    /// Calls the Switchboard program to read the aggregator identified by the instruction.
     fn internal_aggregator_read(&self, ix: &Ix) -> Promise {
         Promise::new(SWITCHBOARD_PROGRAM_ID.parse().unwrap()).function_call(
             "aggregator_read".into(),
@@ -45,6 +48,7 @@ impl SwitchboardFeedParser {
         )
     }
 
+    /// Validates a binary above-price market payload and chains the aggregator callback.
     fn internal_above_price_feed_read(&self, payload: AbovePriceFeedArgs) -> Promise {
         if payload.market_options[0] != "yes" {
             env::panic_str("ERR_INVALID_MARKET_OPTIONS");

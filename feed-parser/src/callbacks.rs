@@ -6,12 +6,14 @@ use crate::storage::*;
 
 #[ext_contract(ext_market)]
 trait Market {
+    /// Resolves the calling market with the winning outcome returned by the feed parser.
     fn resolve(&mut self, outcome_id: u64, ix: Ix);
 }
 
 #[near_bindgen]
 impl SwitchboardFeedParser {
     #[private]
+    /// Handles a Switchboard aggregator response and forwards the winning outcome to the market.
     pub fn on_internal_above_price_feed_read_callback(
         &self,
         payload: AbovePriceFeedArgs,

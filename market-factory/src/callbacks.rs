@@ -6,6 +6,7 @@ use crate::storage::*;
 #[near_bindgen]
 impl MarketFactory {
     #[private]
+    /// Continues market creation by creating outcome tokens and registering collateral-token storage.
     pub fn on_create_market_callback(
         &mut self,
         market_account_id: AccountId,
@@ -55,6 +56,7 @@ impl MarketFactory {
     }
 
     #[private]
+    /// Finalizes market registration once outcome-token creation and collateral storage deposit succeed.
     pub fn on_create_outcome_tokens_ft_storage_deposit_callback(
         &mut self,
         market_account_id: AccountId,

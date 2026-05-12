@@ -3,6 +3,7 @@ use near_sdk::{json_types::U128, near_bindgen, serde_json, AccountId, PromiseOrV
 use crate::*;
 
 pub trait FungibleTokenReceiver {
+    /// Handles incoming fungible-token transfers and dispatches the encoded payload.
     fn ft_on_transfer(
         &mut self,
         sender_id: AccountId,
